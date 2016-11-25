@@ -51,6 +51,8 @@ func (p *Pipeline) fillRepos(config *atc.Config) {
 			for i, v := range paths {
 				p.Repos[uri].ResourcePaths[resourceName][i] = v.(string)
 			}
+		} else {
+			p.Repos[uri].ResourcePaths[ResourceName(resource.Name)] = make(Paths, 0)
 		}
 
 		// TODO: deal with ignore_paths too
