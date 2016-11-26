@@ -20,14 +20,29 @@ func (c *GitCommit) Parent(n uint) *GitCommit {
 	}
 }
 
-func (c *GitCommit) ResourcesTriggered(pipeline *Pipeline) (resources []ResourceName, err error) {
-	resources = make([]ResourceName, 0)
+type GitRange struct {
+	Old *GitCommit
+	New *GitCommit
+}
 
+func (c *GitCommit) ResourcesTriggeredIn(pipeline *Pipeline) (resources []ResourceName, err error) {
 	if strings.Contains(c.Message(), "[skip ci]") || strings.Contains(c.Message(), "[ci skip]") {
-		return
+		return []ResourceName{}, nil
 	}
 
-	repo := c.Repo
+	return (&GitRange{
+		Old: c.Parent(0),
+		New: c,
+	}).ResourcesTriggeredIn(pipeline)
+}
+
+func (r *GitRange) ResourcesTriggeredIn(pipeline *Pipeline) (resources []ResourceName, err error) {
+	resources = make([]ResourceName, 0)
+
+	if r.Old.Repo != r.New.Repo {
+		return resources, fmt.Errorf("Mismatched repos in GitRange!")
+	}
+	repo := r.Old.Repo
 
 	origin, err := repo.Remotes.Lookup("origin")
 	if err != nil {
@@ -39,11 +54,11 @@ func (c *GitCommit) ResourcesTriggered(pipeline *Pipeline) (resources []Resource
 		return resources, fmt.Errorf("No resources in pipeline reference uri: %s", uri)
 	}
 
-	thisTree, err := c.Tree()
+	oldTree, err := r.Old.Tree()
 	if err != nil {
 		return
 	}
-	parentTree, err := c.Parent(0).Tree()
+	newTree, err := r.New.Tree()
 	if err != nil {
 		return
 	}
@@ -54,7 +69,7 @@ func (c *GitCommit) ResourcesTriggered(pipeline *Pipeline) (resources []Resource
 		}
 
 		var diff *git.Diff
-		diff, err = repo.DiffTreeToTree(parentTree, thisTree, opts)
+		diff, err = repo.DiffTreeToTree(oldTree, newTree, opts)
 		if err != nil {
 			return
 		}

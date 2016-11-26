@@ -61,7 +61,7 @@ func main() {
 		fmt.Print(" ")
 		fmt.Print(strings.Split(headCommit.Message(), "\n")[0])
 
-		triggeredResources, err := headCommit.ResourcesTriggered(&pipeline)
+		triggeredResources, err := headCommit.ResourcesTriggeredIn(&pipeline)
 		dieIf(err)
 
 		//drop common prefixes

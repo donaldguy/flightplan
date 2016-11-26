@@ -1,2 +1,3 @@
 cmd/pretty-print-pipeline/pretty-print-pipeline
 cmd/git-log-with-resources/git-log-with-resources
+cmd/predict-build/predict-build
