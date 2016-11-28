@@ -4,8 +4,54 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/concourse/atc"
+
 	git "gopkg.in/libgit2/git2go.v24"
 )
+
+type Repos map[RepoURI]Repo
+type RepoURI string
+type Repo struct {
+	URI RepoURI
+	ResourcePaths
+}
+
+type ResourcePaths map[ResourceName]Paths
+type Paths []string
+
+func repos(config *atc.Config) *Repos {
+	repos := make(Repos)
+	for _, resource := range config.Resources {
+		if resource.Type != "git" {
+			continue
+		}
+
+		uri := RepoURI(resource.Source["uri"].(string))
+
+		if _, ok := repos[uri]; !ok {
+			repo := Repo{URI: uri}
+			repo.ResourcePaths = make(ResourcePaths)
+
+			repos[uri] = repo
+		}
+
+		if resource.Source["paths"] != nil {
+			resourceName := ResourceName(resource.Name)
+			paths := resource.Source["paths"].([]interface{})
+			repos[uri].ResourcePaths[resourceName] = make(Paths, len(paths))
+
+			for i, v := range paths {
+				repos[uri].ResourcePaths[resourceName][i] = v.(string)
+			}
+		} else {
+			repos[uri].ResourcePaths[ResourceName(resource.Name)] = make(Paths, 0)
+		}
+
+		// TODO: deal with ignore_paths too
+
+	}
+	return &repos
+}
 
 type GitCommit struct {
 	// keep an explicit reference to the repo, cause commit.Owner() frequently returns pointer to free'd memory -_-
@@ -49,7 +95,7 @@ func (r *GitRange) ResourcesTriggeredIn(pipeline *Pipeline) (resources []Resourc
 		return
 	}
 	uri := RepoURI(origin.Url())
-	pathsCollection, ok := pipeline.Repos[uri]
+	pathsCollection, ok := (*pipeline.Repos)[uri]
 	if !ok {
 		return resources, fmt.Errorf("No resources in pipeline reference uri: %s", uri)
 	}
