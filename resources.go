@@ -5,30 +5,33 @@ import (
 	configParser "github.com/concourse/atc/config"
 )
 
+// JobName is a string representing the name of a job
 type JobName string
+
+// ResourceName is a string representing the name of a resource
 type ResourceName string
 
-type ResourcesByType struct {
+type resourcesByType struct {
 	AllInputsOfJob        map[JobName][]ResourceName
-	Entrypoints           map[ResourceName][]Entrypoint
-	MidtriggersByResource map[ResourceName][]*Midtrigger
+	Entrypoints           map[ResourceName][]entrypoint
+	MidtriggersByResource map[ResourceName][]*midtrigger
 	Byproducts            map[JobName][]ResourceName
 	Products              map[ResourceName]JobName
 }
 
-type Entrypoint struct {
+type entrypoint struct {
 	ResourceName
 	TriggeredJob JobName
 }
 
-type Midtrigger struct {
+type midtrigger struct {
 	ResourceName
 	Passed       []JobName
 	TriggeredJob JobName
 }
 
-func resourcesByType(config *atc.Config) *ResourcesByType {
-	resources := &ResourcesByType{}
+func newResourcesByType(config *atc.Config) *resourcesByType {
+	resources := &resourcesByType{}
 	resources.fillInputs(config)
 	resources.fillOutputs(config)
 	return resources
@@ -37,10 +40,10 @@ func resourcesByType(config *atc.Config) *ResourcesByType {
 // classify inputs as either:
 //  entrypoints:             input -> job
 //  midtriggers: [passed] -> input -> job
-func (r *ResourcesByType) fillInputs(config *atc.Config) {
-	r.Entrypoints = make(map[ResourceName][]Entrypoint)
+func (r *resourcesByType) fillInputs(config *atc.Config) {
+	r.Entrypoints = make(map[ResourceName][]entrypoint)
 	r.AllInputsOfJob = make(map[JobName][]ResourceName)
-	r.MidtriggersByResource = make(map[ResourceName][]*Midtrigger)
+	r.MidtriggersByResource = make(map[ResourceName][]*midtrigger)
 
 	for _, job := range config.Jobs {
 		jobName := JobName(job.Name)
@@ -54,16 +57,16 @@ func (r *ResourcesByType) fillInputs(config *atc.Config) {
 				// is an entrypoint, record as such
 				if len(input.Passed) == 0 {
 					if _, ok := r.Entrypoints[inputName]; !ok {
-						r.Entrypoints[inputName] = []Entrypoint{}
+						r.Entrypoints[inputName] = []entrypoint{}
 					}
 					r.Entrypoints[inputName] = append(
 						r.Entrypoints[inputName],
-						Entrypoint{inputName, jobName},
+						entrypoint{inputName, jobName},
 					)
 				} else {
 					// it is a middle stage trigger
 
-					mt := &Midtrigger{
+					mt := &midtrigger{
 						ResourceName: inputName,
 						Passed:       make([]JobName, len(input.Passed)),
 						TriggeredJob: jobName,
@@ -73,7 +76,7 @@ func (r *ResourcesByType) fillInputs(config *atc.Config) {
 					}
 
 					if _, ok := r.MidtriggersByResource[inputName]; !ok {
-						r.MidtriggersByResource[inputName] = []*Midtrigger{}
+						r.MidtriggersByResource[inputName] = []*midtrigger{}
 					}
 					r.MidtriggersByResource[inputName] = append(
 						r.MidtriggersByResource[inputName],
@@ -85,7 +88,7 @@ func (r *ResourcesByType) fillInputs(config *atc.Config) {
 	}
 }
 
-func (r *ResourcesByType) fillOutputs(config *atc.Config) {
+func (r *resourcesByType) fillOutputs(config *atc.Config) {
 	r.Products = make(map[ResourceName]JobName)
 	r.Byproducts = make(map[JobName][]ResourceName)
 

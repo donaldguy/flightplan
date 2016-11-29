@@ -1,5 +1,7 @@
 package flightplan
 
+//ResourceNode is a node in a linked structure representing an instance of a resource
+// in a to-be-run concourse pipeline
 type ResourceNode struct {
 	Name ResourceName
 
@@ -9,6 +11,7 @@ type ResourceNode struct {
 	TriggeredJobs []*JobNode
 }
 
+//JobNode is a node in a linked structure representing a job in a to-be-run concourse pipeline
 type JobNode struct {
 	Name        JobName
 	TriggeredBy *ResourceNode
@@ -17,9 +20,10 @@ type JobNode struct {
 	Outputs []*ResourceNode
 }
 
-func (p *Pipeline) GraphStartingFrom(resourceName ResourceName) *ResourceNode {
+// GraphStartingFrom returns a
+func (p *Pipeline) GraphStartingFrom(resourceName string) *ResourceNode {
 	g := &ResourceNode{
-		Name:          resourceName,
+		Name:          ResourceName(resourceName),
 		TriggeredJobs: []*JobNode{},
 		OutputBy:      nil,
 	}
@@ -34,12 +38,12 @@ func (p *Pipeline) GraphStartingFrom(resourceName ResourceName) *ResourceNode {
 }
 
 func (r *ResourceNode) resolveIn(p *Pipeline) {
-	if _, done := p.Products[r.Name]; done {
+	if _, done := p.resourcesByType.Products[r.Name]; done {
 		if r.OutputBy != nil {
 			return
 		}
 	}
-	for _, entrypoint := range p.Entrypoints[r.Name] {
+	for _, entrypoint := range p.resourcesByType.Entrypoints[r.Name] {
 		j := &JobNode{
 			Name:        entrypoint.TriggeredJob,
 			TriggeredBy: r,
@@ -48,12 +52,12 @@ func (r *ResourceNode) resolveIn(p *Pipeline) {
 		j.resolveIn(p)
 	}
 
-	midtriggers := p.MidtriggersByResource[r.Name]
+	midtriggers := p.resourcesByType.MidtriggersByResource[r.Name]
 	// loop through the midtrigger nodes and look for outs whose passed set
 	// includes a job we entrypointed, if any. For these we will create a
 	// "passthrough" resource annotated with the passed set, akin to the
 	// "light-text" nodes displayed in a the concourse web UI graph
-	mtPassesThrough := make(map[*Midtrigger]*JobNode, len(midtriggers))
+	mtPassesThrough := make(map[*midtrigger]*JobNode, len(midtriggers))
 	for _, mt := range midtriggers {
 		mtPassesThrough[mt] = nil
 		for _, tj := range r.TriggeredJobs {
@@ -93,7 +97,7 @@ func (r *ResourceNode) resolveIn(p *Pipeline) {
 }
 
 func (j *JobNode) resolveIn(p *Pipeline) {
-	for _, rName := range p.Byproducts[j.Name] {
+	for _, rName := range p.resourcesByType.Byproducts[j.Name] {
 		r := &ResourceNode{
 			Name:          rName,
 			TriggeredJobs: []*JobNode{},
@@ -103,9 +107,9 @@ func (j *JobNode) resolveIn(p *Pipeline) {
 		r.resolveIn(p)
 	}
 
-	j.AlsoNeeds = make([]ResourceName, len(p.AllInputsOfJob[j.Name])-1)
+	j.AlsoNeeds = make([]ResourceName, len(p.resourcesByType.AllInputsOfJob[j.Name])-1)
 	i := 0
-	for _, input := range p.AllInputsOfJob[j.Name] {
+	for _, input := range p.resourcesByType.AllInputsOfJob[j.Name] {
 		if input != j.TriggeredBy.Name {
 			j.AlsoNeeds[i] = input
 			i++

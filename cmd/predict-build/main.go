@@ -10,7 +10,7 @@ import (
 	"github.com/k0kubun/pp"
 )
 
-type Options struct {
+type options struct {
 	Target       rc.TargetName `short:"t" long:"target" description:"Fly target to monitor" required:"true"`
 	PipelineName string        `short:"p" long:"pipeline" description:"Which pipeline to examine" required:"true"`
 }
@@ -23,7 +23,7 @@ func dieIf(err error) {
 }
 
 func main() {
-	var opts Options
+	var opts options
 
 	parser := flags.NewParser(&opts, flags.HelpFlag|flags.PassDoubleDash)
 	parser.Usage = "-t [TARGET] -p [PIPELINE] <resource>"
@@ -42,5 +42,5 @@ func main() {
 	dieIf(err)
 	pipeline := flightplan.NewPipeline(opts.PipelineName, &pipelineConfig)
 
-	pp.Print(pipeline.GraphStartingFrom(flightplan.ResourceName(args[0])))
+	pp.Print(pipeline.GraphStartingFrom(args[0]))
 }
