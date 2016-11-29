@@ -1,6 +1,10 @@
 package flightplan
 
-import "github.com/concourse/atc"
+import (
+	"fmt"
+
+	"github.com/concourse/go-concourse/concourse"
+)
 
 type Pipeline struct {
 	Name             string
@@ -8,12 +12,18 @@ type Pipeline struct {
 	*ResourcesByType //resources.go
 }
 
-func NewPipeline(name string, config *atc.Config) (p Pipeline) {
-	p.Name = name
-	p.Repos = repos(config)
+func NewPipeline(team concourse.Team, name string) (*Pipeline, error) {
+	config, _, _, exists, err := team.PipelineConfig(name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("Team %s has no pipeline named %s", team.Name(), name)
+	}
 
-	//resources.go
-	p.ResourcesByType = resourcesByType(config)
-
-	return
+	return &Pipeline{
+		Name:            name,
+		Repos:           repos(&config),
+		ResourcesByType: resourcesByType(&config),
+	}, nil
 }
