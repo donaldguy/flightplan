@@ -32,13 +32,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	apiClient := target.Client()
-	p, _, _, _, err := apiClient.Team("main").PipelineConfig(args[0])
+	pipeline, err := flightplan.NewPipeline(target.Team(), args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	p2 := flightplan.NewPipeline(args[0], &p)
-	pp.Print(p2)
+	pp.Print(pipeline)
 }

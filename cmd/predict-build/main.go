@@ -6,8 +6,9 @@ import (
 
 	"github.com/concourse/fly/rc"
 	"github.com/donaldguy/flightplan"
-	flags "github.com/jessevdk/go-flags"
 	"github.com/k0kubun/pp"
+
+	flags "github.com/jessevdk/go-flags"
 )
 
 type options struct {
@@ -38,9 +39,33 @@ func main() {
 
 	target, err := rc.LoadTarget(opts.Target)
 	dieIf(err)
-	pipelineConfig, _, _, _, err := target.Team().PipelineConfig(opts.PipelineName)
-	dieIf(err)
-	pipeline := flightplan.NewPipeline(opts.PipelineName, &pipelineConfig)
 
-	pp.Print(pipeline.GraphStartingFrom(args[0]))
+	pipeline, err := flightplan.NewPipeline(target.Team(), opts.PipelineName)
+	dieIf(err)
+
+	graph := pipeline.GraphStartingFrom(args[0])
+	//rn := graph.Start
+
+	pp.Print(graph.Start)
+	printResource(graph.Start, "")
+}
+
+func printResource(r *flightplan.ResourceNode, buffer string) {
+	fmt.Printf("%sResource: %s", buffer, r.Name)
+	if len(r.Passed) > 0 {
+		fmt.Printf(" (passed: %v)\n", r.Passed)
+	} else {
+		fmt.Println("")
+	}
+
+	for _, tj := range r.TriggeredJobs {
+		printJob(tj, "  "+buffer)
+	}
+}
+
+func printJob(j *flightplan.JobNode, buffer string) {
+	fmt.Printf("%sJob %s\n", buffer, j.Name)
+	for _, o := range j.Outputs {
+		printResource(o, "  "+buffer)
+	}
 }
